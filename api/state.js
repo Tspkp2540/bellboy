@@ -14,14 +14,16 @@ module.exports = async function handler(request, response) {
   const endpoint = `${supabaseUrl.replace(/\/$/, '')}/rest/v1/belldesk_state`;
   const headers = {
     apikey: supabaseSecretKey,
-    Authorization: `Bearer ${supabaseSecretKey}`,
     'Content-Type': 'application/json',
   };
 
   try {
     if (request.method === 'GET') {
       const result = await fetch(`${endpoint}?select=key,value`, { headers, cache: 'no-store' });
-      if (!result.ok) return response.status(502).json({ error: 'อ่านข้อมูลจาก Supabase ไม่สำเร็จ' });
+      if (!result.ok) {
+        console.error('BellDesk Supabase read failed:', result.status, await result.text());
+        return response.status(502).json({ error: 'อ่านข้อมูลจาก Supabase ไม่สำเร็จ ตรวจ Vercel Function Logs' });
+      }
       const rows = await result.json();
       const state = Object.fromEntries(rows.map((row) => [row.key, row.value]));
       return response.status(200).json({ state });
@@ -37,13 +39,17 @@ module.exports = async function handler(request, response) {
         headers: { ...headers, Prefer: 'resolution=merge-duplicates,return=minimal' },
         body: JSON.stringify({ key, value, updated_at: new Date().toISOString() }),
       });
-      if (!result.ok) return response.status(502).json({ error: 'บันทึกข้อมูลไป Supabase ไม่สำเร็จ' });
+      if (!result.ok) {
+        console.error('BellDesk Supabase write failed:', result.status, await result.text());
+        return response.status(502).json({ error: 'บันทึกข้อมูลไป Supabase ไม่สำเร็จ ตรวจ Vercel Function Logs' });
+      }
       return response.status(200).json({ ok: true });
     }
 
     response.setHeader('Allow', 'GET, POST');
     return response.status(405).json({ error: 'Method not allowed' });
-  } catch {
+  } catch (error) {
+    console.error('BellDesk Supabase request error:', error);
     return response.status(502).json({ error: 'เชื่อมต่อ Supabase ไม่สำเร็จ' });
   }
 }
