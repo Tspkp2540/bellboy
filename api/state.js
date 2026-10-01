@@ -1,13 +1,14 @@
 module.exports = async function handler(request, response) {
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
-  const sharedCode = process.env.BELLDESK_SHARED_CODE;
+  const sharedCode = String(process.env.BELLDESK_SHARED_CODE || '').trim();
 
   if (!supabaseUrl || !supabaseSecretKey || !sharedCode) {
     return response.status(503).json({ error: 'BellDesk ยังตั้งค่า Supabase หรือรหัสหัวหน้าไม่ครบใน Vercel' });
   }
 
-  const isManager = request.headers['x-belldesk-code'] === sharedCode;
+  const suppliedCode = String(request.headers['x-belldesk-code'] || '').trim();
+  const isManager = Boolean(suppliedCode) && suppliedCode === sharedCode;
 
   const endpoint = `${supabaseUrl.replace(/\/$/, '')}/rest/v1/belldesk_state`;
   const headers = {
